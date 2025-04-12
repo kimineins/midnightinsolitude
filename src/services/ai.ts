@@ -1,10 +1,9 @@
-import { AIPersona, Message } from '../types/ai';
+import { AIPersona } from '@/types/ai';
 
 export const generateAIResponse = async (
-  messages: Message[],
-  persona: AIPersona,
-  onStream: (text: string) => void
-): Promise<void> => {
+  message: string,
+  persona: AIPersona
+): Promise<string> => {
   try {
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -12,7 +11,13 @@ export const generateAIResponse = async (
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        messages,
+        messages: [
+          {
+            role: 'system',
+            content: persona.systemPrompt,
+          },
+          { role: 'user', content: message },
+        ],
         persona,
       }),
     });
@@ -23,35 +28,21 @@ export const generateAIResponse = async (
 
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error('No reader available');
+      throw new Error('Failed to get response reader');
     }
 
+    let fullResponse = '';
     const decoder = new TextDecoder();
-    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') break;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.text) {
-              onStream(parsed.text);
-            }
-          } catch (e) {
-            console.error('Error parsing stream data:', e);
-          }
-        }
-      }
+      const chunk = decoder.decode(value);
+      fullResponse += chunk;
     }
+
+    return fullResponse;
   } catch (error) {
     console.error('Error generating AI response:', error);
     throw error;

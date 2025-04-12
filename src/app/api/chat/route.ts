@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { AIPersona } from '@/types/ai';
 
@@ -5,7 +6,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
     console.log('API Key:', process.env.OPENAI_API_KEY ? 'Present' : 'Missing');
     
@@ -13,56 +14,45 @@ export async function POST(request: Request) {
       throw new Error('OpenAI API key is not configured');
     }
 
-    const { messages, persona } = await request.json();
+    const { messages, persona } = await req.json();
     console.log('Received request:', { messages, persona });
 
-    if (!messages || !persona) {
-      throw new Error('Invalid request: messages and persona are required');
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json(
+        { error: 'Messages are required and must be an array' },
+        { status: 400 }
+      );
     }
 
-    const formattedMessages = [
-      { role: 'system', content: persona.systemPrompt },
-      ...messages.map((msg: any) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      })),
-    ];
+    const formattedMessages = messages.map((msg: any) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
 
     console.log('Formatted messages:', formattedMessages);
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4",
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4',
       messages: formattedMessages,
       stream: true,
-      temperature: 0.7,
-      max_tokens: 1000,
     });
 
-    console.log('OpenAI response received');
-
     const encoder = new TextEncoder();
-    const stream = new ReadableStream({
+    const streamResponse = new ReadableStream({
       async start(controller) {
-        try {
-          for await (const chunk of response) {
-            if (chunk.choices[0]?.delta?.content) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk.choices[0].delta.content })}\n\n`));
-            }
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            controller.enqueue(encoder.encode(content));
           }
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          controller.close();
-        } catch (error) {
-          console.error('Error in stream processing:', error);
-          controller.error(error);
         }
+        controller.close();
       },
     });
 
-    return new Response(stream, {
+    return new Response(streamResponse, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Content-Type': 'text/plain',
       },
     });
   } catch (error) {
@@ -71,17 +61,9 @@ export async function POST(request: Request) {
       console.error('Error details:', error.message);
           console.error('Error stack:', error.stack);
     }
-    return new Response(
-      JSON.stringify({ 
-        error: 'Failed to generate AI response',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }),
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
+    return NextResponse.json(
+      { error: 'Failed to generate response' },
+      { status: 500 }
     );
   }
 } 

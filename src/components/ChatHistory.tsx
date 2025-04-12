@@ -1,4 +1,5 @@
-import { Message } from '../types/ai';
+import React from 'react';
+import { Message } from '@/types/chat';
 
 interface ChatHistoryProps {
   messages: Message[];
@@ -6,47 +7,55 @@ interface ChatHistoryProps {
   onClose: () => void;
 }
 
-export function ChatHistory({ messages, isOpen, onClose }: ChatHistoryProps) {
+export const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isOpen, onClose }) => {
+  if (!isOpen) return null;
+
   return (
-    <>
-      {/* 사이드바 오버레이 */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
-          onClick={onClose}
-        />
-      )}
-      
-      {/* 사이드바 */}
-      <div
-        className={`fixed right-0 top-0 h-full w-80 bg-[#1A1A1A] shadow-lg transform transition-transform duration-300 ease-in-out z-50 ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        style={{ right: isOpen ? '0' : '-320px' }}
-      >
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
+      <div className="fixed right-0 top-0 h-full w-80 bg-[#1A1A1A] shadow-lg">
         <div className="p-4 border-b border-[#2A2A2A] flex justify-between items-center">
-          <h2 className="text-lg font-bold text-[#A0A0A0]">대화 기록</h2>
+          <h2 className="text-lg font-semibold text-[#A0A0A0]">대화 기록</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-[#2A2A2A] rounded text-[#A0A0A0] hover:text-[#E0E0E0]"
+            className="text-[#A0A0A0] hover:text-white"
           >
-            ✕
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
           </button>
         </div>
-        <div className="overflow-y-auto h-[calc(100%-4rem)] p-4">
+        <div className="overflow-y-auto h-[calc(100%-4rem)]">
           {messages.map((message) => (
             <div
               key={message.id}
-              className="mb-4 p-3 rounded bg-[#2A2A2A]"
+              className={`p-4 border-b border-[#2A2A2A] ${
+                message.role === 'user' ? 'bg-[#2A2A2A]' : 'bg-[#1A1A1A]'
+              }`}
             >
-              <div className="text-sm font-semibold mb-1 text-[#A0A0A0]">
-                {message.role === 'user' ? '나' : message.persona?.name}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-[#A0A0A0]">
+                  {message.role === 'user' ? '나' : message.persona?.name || 'AI'}
+                </span>
+                <span className="text-xs text-[#666666]">
+                  {new Date(message.timestamp).toLocaleString()}
+                </span>
               </div>
-              <p className="text-sm text-[#E0E0E0]">{message.content}</p>
+              <p className="text-[#E0E0E0]">{message.content}</p>
             </div>
           ))}
         </div>
       </div>
-    </>
+    </div>
   );
-} 
+}; 

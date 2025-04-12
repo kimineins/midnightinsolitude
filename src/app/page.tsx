@@ -93,107 +93,94 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedPersona, setSelectedPersona] = useState(defaultPersonas[0]);
 
-  const detectPersona = (content: string): AIPersona | null => {
-    const lowerContent = content.toLowerCase();
+  const detectPersona = (message: string): AIPersona | null => {
+    const lowerMessage = message.toLowerCase();
+    
+    // 각 페르소나의 이름이나 키워드로 메시지를 확인
     for (const persona of defaultPersonas) {
-      if (lowerContent.includes(persona.name.toLowerCase())) {
+      const keywords = [
+        persona.name.toLowerCase(),
+        ...persona.name.toLowerCase().split(' '),
+        ...persona.description.toLowerCase().split(' '),
+      ];
+      
+      if (keywords.some(keyword => lowerMessage.includes(keyword))) {
         return persona;
       }
     }
+    
     return null;
   };
 
-  const handleSendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return;
-
+  const handleSendMessage = async (message: string) => {
+    if (!message.trim() || isLoading) return;
+    
+    setIsLoading(true);
+    setCurrentStream('');
+    
     const userMessage: Message = {
       id: Date.now().toString(),
-      content,
       role: 'user',
-      timestamp: new Date().toISOString(),
-      persona: selectedPersona,
+      content: message,
+      timestamp: Date.now(),
     };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-
-    // 모든 페르소나에게 동시에 메시지 전송
-    const messagePromises = defaultPersonas.map(async (persona) => {
-      const formattedMessages = [
-        {
-          role: 'system',
-          content: persona.systemPrompt,
-        },
-        {
-          role: 'user',
-          content: content,
-        },
-      ];
-
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messages: formattedMessages,
-            persona: persona,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to get AI response');
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error('No reader available');
-        }
-
-        let aiMessage = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = new TextDecoder().decode(value);
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                const aiResponse: Message = {
-                  id: Date.now().toString(),
-                  content: aiMessage,
-                  role: 'assistant',
-                  timestamp: new Date().toISOString(),
-                  persona: persona,
-                };
-                setMessages((prev) => [...prev, aiResponse]);
-                return;
-              }
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.choices?.[0]?.delta?.content) {
-                  aiMessage += parsed.choices[0].delta.content;
-                  setCurrentStream(aiMessage);
-                }
-              } catch (e) {
-                console.error('Error parsing chunk:', e);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      }
-    });
-
+    
+    setMessages(prev => [...prev, userMessage]);
+    
     try {
-      await Promise.all(messagePromises);
+      const detectedPersona = detectPersona(message);
+      const targetPersona = detectedPersona || defaultPersonas[0];
+      setSelectedPersona(targetPersona);
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'system',
+              content: targetPersona.systemPrompt,
+            },
+            { role: 'user', content: message },
+          ],
+          persona: targetPersona,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
+
+      const decoder = new TextDecoder();
+      let fullResponse = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        fullResponse += chunk;
+        setCurrentStream(fullResponse);
+      }
+
+      const aiMessage: Message = {
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: fullResponse,
+        timestamp: Date.now(),
+        persona: targetPersona,
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
-      console.error('Error in message promises:', error);
+      console.error('Error generating response:', error);
     } finally {
       setIsLoading(false);
       setCurrentStream('');
@@ -235,7 +222,7 @@ export default function Home() {
               <div className="font-bold text-lg mb-2 text-[#A0A0A0]">니체</div>
               <div className="flex-1 overflow-y-auto space-y-2">
                 {messages
-                  .filter(msg => msg.personaId === '1')
+                  .filter(msg => msg.persona?.id === '1')
                   .map((message) => (
                     <div
                       key={message.id}
@@ -261,7 +248,7 @@ export default function Home() {
               <div className="font-bold text-lg mb-2 text-[#A0A0A0]">파인만</div>
               <div className="flex-1 overflow-y-auto space-y-2">
                 {messages
-                  .filter(msg => msg.personaId === '2')
+                  .filter(msg => msg.persona?.id === '2')
                   .map((message) => (
                     <div
                       key={message.id}
@@ -287,7 +274,7 @@ export default function Home() {
               <div className="font-bold text-lg mb-2 text-[#A0A0A0]">지젝</div>
               <div className="flex-1 overflow-y-auto space-y-2">
                 {messages
-                  .filter(msg => msg.personaId === '3')
+                  .filter(msg => msg.persona?.id === '3')
                   .map((message) => (
                     <div
                       key={message.id}
@@ -307,21 +294,14 @@ export default function Home() {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* 사용자 입력 영역 */}
-            <div className="border-t border-[#2A2A2A] p-4 bg-[#1A1A1A]">
-              <UserChat onSendMessage={handleSendMessage} isLoading={isLoading} />
-            </div>
+          {/* 사용자 입력 영역 */}
+          <div className="border-t border-[#2A2A2A] p-4 bg-[#1A1A1A]">
+            <UserChat onSendMessage={handleSendMessage} isLoading={isLoading} />
           </div>
         </div>
-
-        {/* 채팅 히스토리 사이드바 */}
-        <ChatHistory
-          messages={messages}
-          isOpen={isHistoryOpen}
-          onClose={() => setIsHistoryOpen(false)}
-        />
       </div>
     </main>
   );
-} 
+}
