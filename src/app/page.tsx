@@ -92,6 +92,7 @@ export default function Home() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedPersona, setSelectedPersona] = useState(defaultPersonas[0]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const detectPersona = (message: string): AIPersona | null => {
     const lowerMessage = message.toLowerCase();
@@ -188,120 +189,134 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen bg-[#1A1A1A] text-white">
-      <div className="flex-1 flex">
-        {/* 메인 채팅 영역 */}
-        <div className="flex-1 flex flex-col relative">
-          {/* 헤더 */}
-          <header className="border-b border-[#2A2A2A] p-4 flex justify-between items-center bg-[#1A1A1A]">
-            <h1 className="text-xl font-bold text-[#A0A0A0]">Midnight in Solitude</h1>
+    <main className="min-h-screen bg-[#1A1A1A] flex">
+      {/* 왼쪽 사이드바 - 페르소나 선택 */}
+      <div className="w-[350px] border-r border-[#2A2A2A] bg-[#1A1A1A] flex flex-col">
+        {/* 사이드바 헤더 */}
+        <div className="p-4 border-b border-[#2A2A2A]">
+          <h1 className="text-xl font-semibold text-white">Midnight in Solitude</h1>
+        </div>
+        
+        {/* 페르소나 목록 */}
+        <div className="flex-1 overflow-y-auto">
+          {defaultPersonas.map((persona) => (
             <button
-              onClick={() => setIsHistoryOpen(true)}
-              className="px-4 py-2 bg-[#2A2A2A] rounded hover:bg-[#3A3A3A] flex items-center gap-2 text-[#A0A0A0]"
+              key={persona.id}
+              onClick={() => setSelectedPersona(persona)}
+              className={`w-full p-4 flex items-center gap-3 hover:bg-[#2A2A2A] transition-colors ${
+                selectedPersona.id === persona.id ? 'bg-[#2A2A2A]' : ''
+              }`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              대화 기록
+              <div className="w-12 h-12 rounded-full bg-[#3A3A3A] flex items-center justify-center">
+                <span className="text-lg text-white">{persona.name[0]}</span>
+              </div>
+              <div className="flex-1 text-left">
+                <div className="text-white font-medium">{persona.name}</div>
+                <div className="text-sm text-[#A0A0A0] line-clamp-1">
+                  {persona.description}
+                </div>
+              </div>
             </button>
-          </header>
-
-          {/* 페르소나별 채팅 영역 */}
-          <div className="flex-1 flex flex-col">
-            {/* 니체 영역 */}
-            <div className="flex-1 border-b border-[#2A2A2A] p-4 bg-[#1A1A1A]">
-              <div className="font-bold text-lg mb-2 text-[#A0A0A0]">니체</div>
-              <div className="flex-1 overflow-y-auto space-y-2">
-                {messages
-                  .filter(msg => msg.persona?.id === '1')
-                  .map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-3 rounded ${
-                        message.role === 'user'
-                          ? 'bg-[#2A2A2A] ml-4'
-                          : 'bg-[#3A3A3A] mr-4'
-                      }`}
-                    >
-                      <p className="text-sm text-[#E0E0E0]">{message.content}</p>
-                    </div>
-                  ))}
-                {isLoading && currentStream && selectedPersona.id === '1' && (
-                  <div className="p-3 rounded bg-[#3A3A3A] mr-4">
-                    <p className="text-sm text-[#E0E0E0]">{currentStream}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 파인만 영역 */}
-            <div className="flex-1 border-b border-[#2A2A2A] p-4 bg-[#1A1A1A]">
-              <div className="font-bold text-lg mb-2 text-[#A0A0A0]">파인만</div>
-              <div className="flex-1 overflow-y-auto space-y-2">
-                {messages
-                  .filter(msg => msg.persona?.id === '2')
-                  .map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-3 rounded ${
-                        message.role === 'user'
-                          ? 'bg-[#2A2A2A] ml-4'
-                          : 'bg-[#3A3A3A] mr-4'
-                      }`}
-                    >
-                      <p className="text-sm text-[#E0E0E0]">{message.content}</p>
-                    </div>
-                  ))}
-                {isLoading && currentStream && selectedPersona.id === '2' && (
-                  <div className="p-3 rounded bg-[#3A3A3A] mr-4">
-                    <p className="text-sm text-[#E0E0E0]">{currentStream}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 지젝 영역 */}
-            <div className="flex-1 border-b border-[#2A2A2A] p-4 bg-[#1A1A1A]">
-              <div className="font-bold text-lg mb-2 text-[#A0A0A0]">지젝</div>
-              <div className="flex-1 overflow-y-auto space-y-2">
-                {messages
-                  .filter(msg => msg.persona?.id === '3')
-                  .map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-3 rounded ${
-                        message.role === 'user'
-                          ? 'bg-[#2A2A2A] ml-4'
-                          : 'bg-[#3A3A3A] mr-4'
-                      }`}
-                    >
-                      <p className="text-sm text-[#E0E0E0]">{message.content}</p>
-                    </div>
-                  ))}
-                {isLoading && currentStream && selectedPersona.id === '3' && (
-                  <div className="p-3 rounded bg-[#3A3A3A] mr-4">
-                    <p className="text-sm text-[#E0E0E0]">{currentStream}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 사용자 입력 영역 */}
-          <div className="border-t border-[#2A2A2A] p-4 bg-[#1A1A1A]">
-            <UserChat onSendMessage={handleSendMessage} isLoading={isLoading} />
-          </div>
+          ))}
         </div>
       </div>
+
+      {/* 메인 채팅 영역 */}
+      <div className="flex-1 flex flex-col h-screen">
+        {/* 채팅 헤더 */}
+        <div className="flex items-center justify-between p-4 border-b border-[#2A2A2A]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#3A3A3A] flex items-center justify-center">
+              <span className="text-white">{selectedPersona.name[0]}</span>
+            </div>
+            <div>
+              <div className="font-medium text-white">{selectedPersona.name}</div>
+              <div className="text-sm text-[#A0A0A0]">{selectedPersona.description}</div>
+            </div>
+          </div>
+          <button 
+            onClick={() => setShowHistory(!showHistory)}
+            className="text-[#A0A0A0] hover:text-white p-2 rounded-full hover:bg-[#2A2A2A]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 채팅 메시지 영역 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages
+            .filter(msg => !msg.persona || msg.persona.id === selectedPersona.id)
+            .map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-[#3A3A3A] flex items-center justify-center mr-2 self-end">
+                    <span className="text-sm text-white">{selectedPersona.name[0]}</span>
+                  </div>
+                )}
+                <div
+                  className={`max-w-[60%] p-3 rounded-2xl ${
+                    message.role === 'user'
+                      ? 'bg-[#0095F6] text-white rounded-tr-none'
+                      : 'bg-[#2A2A2A] text-[#E0E0E0] rounded-tl-none'
+                  }`}
+                >
+                  <p className="text-sm">{message.content}</p>
+                  <div className="text-xs opacity-60 mt-1 text-right">
+                    {new Date(message.timestamp).toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: false 
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          {isLoading && currentStream && (
+            <div className="flex justify-start">
+              <div className="w-8 h-8 rounded-full bg-[#3A3A3A] flex items-center justify-center mr-2 self-end">
+                <span className="text-sm text-white">{selectedPersona.name[0]}</span>
+              </div>
+              <div className="max-w-[60%] p-3 rounded-2xl bg-[#2A2A2A] text-[#E0E0E0] rounded-tl-none">
+                <p className="text-sm">{currentStream}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 입력 영역 */}
+        <div className="border-t border-[#2A2A2A] p-4">
+          <UserChat onSendMessage={handleSendMessage} isLoading={isLoading} />
+        </div>
+      </div>
+
+      {/* 채팅 기록 사이드바 */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={() => setShowHistory(false)}>
+          <div className="absolute right-0 top-0 h-full w-[300px] bg-[#1A1A1A] border-l border-[#2A2A2A]" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-[#2A2A2A] flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white">채팅 기록</h2>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-[#A0A0A0] hover:text-white p-2 rounded-full hover:bg-[#2A2A2A]"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto h-[calc(100%-64px)]">
+              <ChatHistory messages={messages} onSelectMessage={handleSendMessage} />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
